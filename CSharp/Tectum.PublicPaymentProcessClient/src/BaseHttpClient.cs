@@ -1,0 +1,343 @@
+﻿using Microsoft.Extensions.Options;
+using System.Collections.Specialized;
+using System.Security.Authentication;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Web;
+using Tectum.PublicPaymentProcessClient.Options;
+using Tectum.PublicPaymentProcessClient.Requests;
+using Tectum.PublicPaymentProcessClient.Responses;
+
+namespace Tectum.PublicPaymentProcessClient;
+
+public class BaseHttpClient : IDisposable
+{
+    private readonly bool _disposeHttpClient;
+    private readonly HttpClient _httpClient;
+    private readonly PaymentProcessClientOptions _options;
+    private readonly JsonSerializerOptions _jsonSerializerOptions;
+    private readonly SemaphoreSlim _authSemaphore = new SemaphoreSlim(1, 1);
+
+    private string ClientId { get; set; }
+    private string ClientSecretKey { get; set; }
+    private string? AuthToken { get; set; }
+    private DateTime AuthExpiredAt { get; set; }
+    private Task<bool> _authTask;
+    private DateTime _lastAuthAttempt = DateTime.MinValue;
+    private TimeSpan AuthRetryDelay;
+
+    protected BaseHttpClient(HttpClient? httpClient, Action<PaymentProcessClientOptions>? optionsDelegate = null)
+    {
+        _options = ApplyOptionsDelegate(optionsDelegate);
+        _httpClient = httpClient ?? CreateDefaultHttpClient();
+        _disposeHttpClient = httpClient is null;
+        ConfigurePaymentProcessApi(_options);
+        _jsonSerializerOptions = CreateJsonSerializerOptions();
+
+        if (httpClient is null)
+        {
+            ConfigureHttpClient(_httpClient, _options);
+        }
+    }
+
+    protected BaseHttpClient(HttpClient? httpClient, IOptions<PaymentProcessClientOptions> options, JsonSerializerOptions? jsonSerializerOptions = null)
+    {
+        _options = options.Value;
+        _httpClient = httpClient ?? CreateDefaultHttpClient();
+        _disposeHttpClient = httpClient is null;
+        ConfigurePaymentProcessApi(_options);
+        _jsonSerializerOptions = jsonSerializerOptions ?? CreateJsonSerializerOptions();
+
+        if (httpClient is null)
+        {
+            ConfigureHttpClient(_httpClient, _options);
+        }
+    }
+
+    private static HttpClient CreateDefaultHttpClient()
+    {
+        return new HttpClient();
+    }
+
+    private static JsonSerializerOptions CreateJsonSerializerOptions()
+    {
+        return new JsonSerializerOptions()
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+        };
+    }
+
+    private void ConfigureHttpClient(HttpClient client, PaymentProcessClientOptions options)
+    {
+        if (string.IsNullOrEmpty(options.BaseUrl))
+        {
+            throw new ArgumentException("BaseUrl is required");
+        }
+
+        client.BaseAddress = new Uri(options.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(options.TimeoutInSeconds);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    }
+
+    private void ConfigurePaymentProcessApi(PaymentProcessClientOptions options)
+    {
+        ClientId = options.ClientId;
+        ClientSecretKey = options.ClientSecret;
+        AuthRetryDelay = TimeSpan.FromSeconds(options.AuthRetryDelayInSeconds);
+    }
+
+    private static PaymentProcessClientOptions ApplyOptionsDelegate(Action<PaymentProcessClientOptions>? optionsDelegate)
+    {
+        var options = PaymentProcessClientOptions.Default.Copy();
+        optionsDelegate?.Invoke(options);
+        return options;
+    }
+
+    protected async Task<T?> GetAsync<T>(string url,
+        IEnumerable<KeyValuePair<string, string>>? parameters = default,
+        CancellationToken cancellationToken = default)
+        where T : BaseResponse
+    {
+        NameValueCollection? queryString = null;
+        if (parameters != null)
+        {
+            queryString = HttpUtility.ParseQueryString(string.Empty);
+
+            foreach (var parameter in parameters)
+            {
+                queryString.Add(parameter.Key, parameter.Value);
+            }
+        }
+
+        using var requestMessage = new HttpRequestMessage
+        {
+            Method = HttpMethod.Get,
+            RequestUri = new Uri(url + (queryString != null ? "?" + queryString : ""), UriKind.Relative)
+        };
+
+        var response = await SendRequestAsync(requestMessage, cancellationToken: cancellationToken);
+        return JsonSerializer.Deserialize<T>(response, _jsonSerializerOptions);
+    }
+
+    protected Task<T?> SendRequestAsync<T>(string url,
+        HttpMethod method,
+        object? request = default,
+        CancellationToken cancellationToken = default)
+        where T : class
+    {
+        return SendRequestAsync<T>(url, method, new Dictionary<string, string>(), request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Send request to outside by httlcient
+    /// </summary>
+    /// <param name="url">Url</param>
+    /// <param name="method">http method</param>
+    /// <param name="headers">Headers of http client</param>
+    /// <param name="request">Request for sending to </param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <typeparam name="T">BaseApiResponse </typeparam>
+    /// <returns></returns>
+    protected Task<T?> SendRequestAsync<T>(string url,
+        HttpMethod method,
+        IReadOnlyDictionary<string, string> headers,
+        object? request = default,
+        CancellationToken cancellationToken = default)
+        where T : class
+    {
+        return SendRequestAsync<T>(url, method, headers, UriKind.Relative, request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Send request to outside by httlcient
+    /// </summary>
+    /// <param name="url">Url</param>
+    /// <param name="method">http method</param>
+    /// <param name="headers">Headers of http client</param>
+    /// <param name="uriKind">Uri kind</param>
+    /// <param name="request">Request for sending to </param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <typeparam name="T">BaseApiResponse </typeparam>
+    /// <returns></returns>
+    protected async Task<T?> SendRequestAsync<T>(string url,
+        HttpMethod method,
+        IReadOnlyDictionary<string, string> headers,
+        UriKind uriKind,
+        object? request = default,
+        CancellationToken cancellationToken = default)
+        where T : class
+    {
+        StringContent? content = null;
+
+        if (request != null)
+        {
+            var jsonRequest = JsonSerializer.Serialize(request, _jsonSerializerOptions);
+
+            content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+        }
+
+        using (var requestMessage = new HttpRequestMessage())
+        {
+            requestMessage.Content = content;
+            requestMessage.Method = method;
+            requestMessage.RequestUri = new Uri(url, uriKind);
+
+            foreach (var header in headers)
+            {
+                requestMessage.Headers.Add(header.Key, header.Value);
+            }
+
+            var response = await SendRequestAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+            return JsonSerializer.Deserialize<T>(response, _jsonSerializerOptions);
+        }
+    }
+
+    /// <summary>
+    /// Send request to outside services
+    /// </summary>
+    /// <param name="message"></param>
+    /// <param name="cancellationToken">Token</param>
+    private async Task<string> SendRequestAsync(HttpRequestMessage message, CancellationToken cancellationToken)
+    {
+        // Ensure we have valid authentication
+        if (!await EnsureAuthorizationAsync(cancellationToken))
+        {
+            throw new InvalidOperationException("Authorization failed");
+        }
+
+        // Add Authorization header if token is set
+        message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", AuthToken);
+
+        using var response = await _httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Ensures valid authentication token is available
+    /// </summary>
+    private async Task<bool> EnsureAuthorizationAsync(CancellationToken cancellationToken)
+    {
+        // Fast path: check if token is already valid without locking
+        if (IsTokenValid())
+        {
+            return true;
+        }
+
+        // Protection against frequent auth attempts on errors
+        if (DateTime.UtcNow - _lastAuthAttempt < AuthRetryDelay &&
+            _authTask?.IsFaulted == true)
+        {
+            // If recent failed attempt, await the failed task to re-throw exception
+            return await _authTask;
+        }
+
+        // Acquire lock for auth operations
+        await _authSemaphore.WaitAsync(cancellationToken);
+        try
+        {
+            // Double-check after acquiring lock
+            if (IsTokenValid())
+            {
+                return true;
+            }
+
+            // Create new auth task if needed
+            if (_authTask is null || _authTask.IsCompleted)
+            {
+                _lastAuthAttempt = DateTime.UtcNow;
+                _authTask = PerformAuthorizationAsync(cancellationToken);
+            }
+
+            return await _authTask;
+        }
+        finally
+        {
+            _authSemaphore.Release();
+        }
+    }
+
+    /// <summary>
+    /// Perform actual authorization request
+    /// </summary>
+    private async Task<bool> PerformAuthorizationAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var request = new AuthorizationRequest(ClientId, ClientSecretKey, Commons.Enums.GrantType.ClientCredentials);
+
+            var authResult = await SendRequestAuthAsync<ApiKeyAuthResponse>(
+                "v2/apikey/auth",
+                HttpMethod.Post,
+                request,
+                cancellationToken
+            );
+
+            if (authResult is null || authResult.HasError || string.IsNullOrEmpty(authResult.JwtToken))
+            {
+                throw new AuthenticationException("Authorization failed: " + (authResult?.Message ?? "Unknown error"));
+            }
+
+            AuthToken = authResult.JwtToken;
+            AuthExpiredAt = authResult.ExpiredAt;
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // Reset auth task on failure to allow retry
+            _authTask = null;
+            throw new AuthenticationException("Authorization process failed", ex);
+        }
+    }
+
+    /// <summary>
+    /// Check if current token is valid
+    /// </summary>
+    private bool IsTokenValid()
+    {
+        return !string.IsNullOrEmpty(AuthToken) &&
+               DateTime.UtcNow <= AuthExpiredAt;
+    }
+
+    protected async Task<T?> SendRequestAuthAsync<T>(string url,
+        HttpMethod method,
+        object? request = default,
+        CancellationToken cancellationToken = default)
+        where T : class
+    {
+        StringContent? content = null;
+
+        if (request != null)
+        {
+            var jsonRequest = JsonSerializer.Serialize(request, _jsonSerializerOptions);
+
+            content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+        }
+
+        using (var requestMessage = new HttpRequestMessage())
+        {
+            requestMessage.Content = content;
+            requestMessage.Method = method;
+            requestMessage.RequestUri = new Uri(url, UriKind.Relative);
+
+            using var response = await _httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+            var result = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+            return JsonSerializer.Deserialize<T>(result, _jsonSerializerOptions);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposeHttpClient)
+        {
+            _httpClient?.Dispose();
+        }
+        GC.SuppressFinalize(this);
+    }
+}
