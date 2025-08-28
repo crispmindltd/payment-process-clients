@@ -46,7 +46,8 @@ Each balance entry contains the following:
 	],
 	"errorCode": "0",
 	"errorMsgs": []
-}```
+}
+```
 
 ### Error Response
 
@@ -61,7 +62,7 @@ Each balance entry contains the following:
 
 | Error Code              | HTTP Status Code  | Error Description                  |
 | ----------------------- | ----------------- | ---------------------------------- |
-| 10011      		  | 400 Bad Request   | Access token is incorrect        |
+| 10011      		  | 400 Bad Request   | Access token is incorrect          |
 
 
 #### Example Error Response
@@ -78,6 +79,8 @@ Each balance entry contains the following:
 ### Workflow
 
 1\. User sends a request. With the user's Authorization Token
+
 2\. Server checks the token and returns the user's current balances
+
 3\. If the user's Authorization Token is invalid, the server returns an error.
 
