@@ -33,16 +33,16 @@ Each balance entry contains the following:
 ```json
 {
 	"balances": [
-	{
+	   {
 	     "ticker": "ETH",
 	     "network": "Etheruem",
 	     "amount": 0.1
-	},
-	{
+	   },
+	   {
 	     "ticker": "USDT",
 	     "network": "Tectum",
 	     "amount": 201.53
-	}
+	   }
 	],
 	"errorCode": "0",
 	"errorMsgs": []
@@ -71,7 +71,7 @@ Each balance entry contains the following:
 {
   "errorCode": "10011",
   "errorMsgs": [
-  "Access token is incorrect"
+  	"Access token is incorrect"
    ]
 }
  ```
