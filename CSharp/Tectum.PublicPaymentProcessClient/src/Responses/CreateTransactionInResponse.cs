@@ -2,7 +2,7 @@
 
 namespace Tectum.PublicPaymentProcessClient.Responses;
 
-public class CreateTransactionInResponse : BaseResponse
+public class CreateTransactionInResponse : BaseApiResponse
 {
     public Guid Id { get; set; }
     public string ExternalId { get; set; }

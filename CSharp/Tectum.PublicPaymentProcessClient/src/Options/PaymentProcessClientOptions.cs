@@ -27,10 +27,6 @@ public class PaymentProcessClientOptions
     /// </summary>
     public int TimeoutInSeconds { get; set; } = 30;
 
-    /// <summary>
-    /// Authoization retry delay in seconds
-    /// </summary>
-    public int AuthRetryDelayInSeconds { get; set; } = 30;
 
     public PaymentProcessClientOptions Copy()
     {
@@ -40,7 +36,6 @@ public class PaymentProcessClientOptions
             ClientId = ClientId,
             ClientSecret = ClientSecret,
             TimeoutInSeconds = TimeoutInSeconds,
-            AuthRetryDelayInSeconds = AuthRetryDelayInSeconds
         };
     }
 }

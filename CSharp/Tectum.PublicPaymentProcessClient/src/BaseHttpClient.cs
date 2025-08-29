@@ -1,10 +1,11 @@
 ﻿using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using System.Collections.Specialized;
 using System.Security.Authentication;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Web;
+using Tectum.PublicPaymentProcessClient.Converters;
 using Tectum.PublicPaymentProcessClient.Options;
 using Tectum.PublicPaymentProcessClient.Requests;
 using Tectum.PublicPaymentProcessClient.Responses;
@@ -16,7 +17,7 @@ public class BaseHttpClient : IDisposable
     private readonly bool _disposeHttpClient;
     private readonly HttpClient _httpClient;
     private readonly PaymentProcessClientOptions _options;
-    private readonly JsonSerializerOptions _jsonSerializerOptions;
+    private readonly JsonSerializerSettings _jsonSerializerSettings;
     private readonly SemaphoreSlim _authSemaphore = new SemaphoreSlim(1, 1);
 
     private string ClientId { get; set; }
@@ -24,8 +25,6 @@ public class BaseHttpClient : IDisposable
     private string? AuthToken { get; set; }
     private DateTime AuthExpiredAt { get; set; }
     private Task<bool> _authTask;
-    private DateTime _lastAuthAttempt = DateTime.MinValue;
-    private TimeSpan AuthRetryDelay;
 
     protected BaseHttpClient(HttpClient? httpClient, Action<PaymentProcessClientOptions>? optionsDelegate = null)
     {
@@ -33,7 +32,7 @@ public class BaseHttpClient : IDisposable
         _httpClient = httpClient ?? CreateDefaultHttpClient();
         _disposeHttpClient = httpClient is null;
         ConfigurePaymentProcessApi(_options);
-        _jsonSerializerOptions = CreateJsonSerializerOptions();
+        _jsonSerializerSettings = CreateJsonSerializerSettings();
 
         if (httpClient is null)
         {
@@ -41,13 +40,13 @@ public class BaseHttpClient : IDisposable
         }
     }
 
-    protected BaseHttpClient(HttpClient? httpClient, IOptions<PaymentProcessClientOptions> options, JsonSerializerOptions? jsonSerializerOptions = null)
+    protected BaseHttpClient(HttpClient? httpClient, IOptions<PaymentProcessClientOptions> options, JsonSerializerSettings? jsonSerializerSettings = null)
     {
         _options = options.Value;
         _httpClient = httpClient ?? CreateDefaultHttpClient();
         _disposeHttpClient = httpClient is null;
         ConfigurePaymentProcessApi(_options);
-        _jsonSerializerOptions = jsonSerializerOptions ?? CreateJsonSerializerOptions();
+        _jsonSerializerSettings = jsonSerializerSettings ?? CreateJsonSerializerSettings();
 
         if (httpClient is null)
         {
@@ -60,15 +59,18 @@ public class BaseHttpClient : IDisposable
         return new HttpClient();
     }
 
-    private static JsonSerializerOptions CreateJsonSerializerOptions()
+    private static JsonSerializerSettings CreateJsonSerializerSettings()
     {
-        return new JsonSerializerOptions()
+        return new JsonSerializerSettings()
         {
-            DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true,
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+            NullValueHandling = NullValueHandling.Include,
+            ContractResolver = new CamelCasePropertyNamesContractResolver(),
+            DateTimeZoneHandling = DateTimeZoneHandling.Utc,
+            Formatting = Formatting.Indented,
+            Converters = new List<JsonConverter>
+            {
+                new JsonPropertyEnumConverter()
+            }
         };
     }
 
@@ -88,7 +90,6 @@ public class BaseHttpClient : IDisposable
     {
         ClientId = options.ClientId;
         ClientSecretKey = options.ClientSecret;
-        AuthRetryDelay = TimeSpan.FromSeconds(options.AuthRetryDelayInSeconds);
     }
 
     private static PaymentProcessClientOptions ApplyOptionsDelegate(Action<PaymentProcessClientOptions>? optionsDelegate)
@@ -101,7 +102,7 @@ public class BaseHttpClient : IDisposable
     protected async Task<T?> GetAsync<T>(string url,
         IEnumerable<KeyValuePair<string, string>>? parameters = default,
         CancellationToken cancellationToken = default)
-        where T : BaseResponse
+        where T : BaseApiResponse
     {
         NameValueCollection? queryString = null;
         if (parameters != null)
@@ -121,7 +122,7 @@ public class BaseHttpClient : IDisposable
         };
 
         var response = await SendRequestAsync(requestMessage, cancellationToken: cancellationToken);
-        return JsonSerializer.Deserialize<T>(response, _jsonSerializerOptions);
+        return JsonConvert.DeserializeObject<T>(response, _jsonSerializerSettings);
     }
 
     protected Task<T?> SendRequestAsync<T>(string url,
@@ -176,7 +177,7 @@ public class BaseHttpClient : IDisposable
 
         if (request != null)
         {
-            var jsonRequest = JsonSerializer.Serialize(request, _jsonSerializerOptions);
+            var jsonRequest = JsonConvert.SerializeObject(request, _jsonSerializerSettings);
 
             content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
         }
@@ -193,7 +194,7 @@ public class BaseHttpClient : IDisposable
             }
 
             var response = await SendRequestAsync(requestMessage, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize<T>(response, _jsonSerializerOptions);
+            return JsonConvert.DeserializeObject<T>(response, _jsonSerializerSettings);
         }
     }
 
@@ -211,7 +212,8 @@ public class BaseHttpClient : IDisposable
         }
 
         // Add Authorization header if token is set
-        message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", AuthToken);
+        message.Headers.Add("Authorization", AuthToken);
+        //message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(null, AuthToken);
 
         using var response = await _httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
         return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -228,14 +230,6 @@ public class BaseHttpClient : IDisposable
             return true;
         }
 
-        // Protection against frequent auth attempts on errors
-        if (DateTime.UtcNow - _lastAuthAttempt < AuthRetryDelay &&
-            _authTask?.IsFaulted == true)
-        {
-            // If recent failed attempt, await the failed task to re-throw exception
-            return await _authTask;
-        }
-
         // Acquire lock for auth operations
         await _authSemaphore.WaitAsync(cancellationToken);
         try
@@ -249,7 +243,6 @@ public class BaseHttpClient : IDisposable
             // Create new auth task if needed
             if (_authTask is null || _authTask.IsCompleted)
             {
-                _lastAuthAttempt = DateTime.UtcNow;
                 _authTask = PerformAuthorizationAsync(cancellationToken);
             }
 
@@ -271,7 +264,7 @@ public class BaseHttpClient : IDisposable
             var request = new AuthorizationRequest(ClientId, ClientSecretKey, Commons.Enums.GrantType.ClientCredentials);
 
             var authResult = await SendRequestAuthAsync<ApiKeyAuthResponse>(
-                "v2/apikey/auth",
+                "v2/users/auth",
                 HttpMethod.Post,
                 request,
                 cancellationToken
@@ -279,7 +272,7 @@ public class BaseHttpClient : IDisposable
 
             if (authResult is null || authResult.HasError || string.IsNullOrEmpty(authResult.JwtToken))
             {
-                throw new AuthenticationException("Authorization failed: " + (authResult?.Message ?? "Unknown error"));
+                throw new AuthenticationException("Authorization failed: " + (authResult?.ToString() ?? "Unknown error"));
             }
 
             AuthToken = authResult.JwtToken;
@@ -314,7 +307,7 @@ public class BaseHttpClient : IDisposable
 
         if (request != null)
         {
-            var jsonRequest = JsonSerializer.Serialize(request, _jsonSerializerOptions);
+            var jsonRequest = JsonConvert.SerializeObject(request, _jsonSerializerSettings);
 
             content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
         }
@@ -328,7 +321,7 @@ public class BaseHttpClient : IDisposable
             using var response = await _httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
             var result = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-            return JsonSerializer.Deserialize<T>(result, _jsonSerializerOptions);
+            return JsonConvert.DeserializeObject<T>(result, _jsonSerializerSettings);
         }
     }
 

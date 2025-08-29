@@ -2,7 +2,7 @@
 
 namespace Tectum.PublicPaymentProcessClient.Responses;
 
-public class TransactionConfirmResponse : BaseResponse
+public class TransactionConfirmResponse : BaseApiResponse
 {
     /// <summary>
     /// Transaction identificator

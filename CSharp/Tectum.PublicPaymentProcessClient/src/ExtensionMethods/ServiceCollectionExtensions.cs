@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
+using Newtonsoft.Json;
 using Tectum.PublicPaymentProcessClient.Options;
 
 namespace Tectum.PublicPaymentProcessClient.ExtensionMethods;
@@ -84,7 +85,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddPaymentProcessClient(
         this IServiceCollection services,
         Action<PaymentProcessClientOptions> configureOptions,
-        JsonSerializerOptions jsonSerializerOptions)
+        JsonSerializerSettings jsonSerializerSettings)
     {
         if (configureOptions is null)
         {
@@ -94,20 +95,20 @@ public static class ServiceCollectionExtensions
         services.Configure(configureOptions);
 
         // Register custom JsonSerializerOptions as singleton
-        services.TryAddSingleton(jsonSerializerOptions);
+        services.TryAddSingleton(jsonSerializerSettings);
 
         // Register client as Singleton with custom JSON options
         services.AddSingleton<IPaymentProcessApiClient>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<PaymentProcessClientOptions>>();
             var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
-            var jsonOptions = provider.GetService<JsonSerializerOptions>();
+            var jsonSettings = provider.GetService<JsonSerializerSettings>();
 
             var httpClient = httpClientFactory.CreateClient();
             var optionsValue = options.Value;
             ConfigureHttpClient(httpClient, optionsValue);
 
-            return new PaymentProcessClient(httpClient, options, jsonOptions);
+            return new PaymentProcessClient(httpClient, options, jsonSettings);
         });
 
         return services;

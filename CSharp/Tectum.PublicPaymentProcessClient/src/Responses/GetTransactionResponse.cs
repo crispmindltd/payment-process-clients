@@ -2,7 +2,7 @@
 
 namespace Tectum.PublicPaymentProcessClient.Responses;
 
-public class GetTransactionResponse : BaseResponse
+public class GetTransactionResponse : BaseApiResponse
 {
     public TransactionDto Transaction { get; set; }
 }

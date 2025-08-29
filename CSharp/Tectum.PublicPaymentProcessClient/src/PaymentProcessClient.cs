@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Options;
-using System.Text.Json;
+using Newtonsoft.Json;
 using Tectum.PublicPaymentProcessClient.Options;
 using Tectum.PublicPaymentProcessClient.Requests;
 using Tectum.PublicPaymentProcessClient.Responses;
@@ -18,13 +18,13 @@ public class PaymentProcessClient : BaseHttpClient, IPaymentProcessApiClient
     {
     }
 
-    public PaymentProcessClient(IOptions<PaymentProcessClientOptions> options, JsonSerializerOptions? jsonSerializerOptions = null)
-        : base(null, options, jsonSerializerOptions)
+    public PaymentProcessClient(IOptions<PaymentProcessClientOptions> options, JsonSerializerSettings? jsonSerializerSettings = null)
+        : base(null, options, jsonSerializerSettings)
     {
     }
 
-    public PaymentProcessClient(HttpClient httpClient, IOptions<PaymentProcessClientOptions> options, JsonSerializerOptions? jsonSerializerOptions = null)
-        : base(httpClient, options, jsonSerializerOptions)
+    public PaymentProcessClient(HttpClient httpClient, IOptions<PaymentProcessClientOptions> options, JsonSerializerSettings? jsonSerializerSettings = null)
+        : base(httpClient, options, jsonSerializerSettings)
     {
     }
 
@@ -58,7 +58,7 @@ public class PaymentProcessClient : BaseHttpClient, IPaymentProcessApiClient
         return await SendRequestAsync<CreateTransactionOutResponse>("v1/payments/out", HttpMethod.Post, request, cancellationToken);
     }
 
-    public async Task<TransactionConfirmResponse?> ConfirmTransactionAsync(Guid transactionId, CancellationToken cancellationToken = default) 
+    public async Task<TransactionConfirmResponse?> ConfirmTransactionAsync(Guid transactionId, CancellationToken cancellationToken = default)
     {
         return await SendRequestAsync<TransactionConfirmResponse>($"v1/payments/{transactionId}/confirm", HttpMethod.Post, null, cancellationToken);
     }

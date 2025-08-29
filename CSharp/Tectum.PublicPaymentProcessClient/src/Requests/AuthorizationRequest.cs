@@ -1,4 +1,6 @@
-﻿using Tectum.PublicPaymentProcessClient.Commons.Enums;
+﻿using Newtonsoft.Json;
+using Tectum.PublicPaymentProcessClient.Commons.Enums;
+using Tectum.PublicPaymentProcessClient.Converters;
 
 namespace Tectum.PublicPaymentProcessClient.Requests;
 
@@ -31,5 +33,6 @@ public class AuthorizationRequest
     /// <summary>
     /// User type
     /// </summary>
+    [JsonConverter(typeof(JsonPropertyEnumConverter))]
     public GrantType GrantType { get; set; }
 }

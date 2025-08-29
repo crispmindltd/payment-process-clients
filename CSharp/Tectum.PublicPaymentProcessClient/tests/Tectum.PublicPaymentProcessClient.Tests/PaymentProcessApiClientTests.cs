@@ -74,7 +74,7 @@ public class PaymentProcessApiClientTests
                 "SendAsync",
                 ItExpr.Is<HttpRequestMessage>(req =>
                     req.Method == HttpMethod.Post &&
-                    req.RequestUri.ToString().Contains("v2/apikey/auth")),
+                    req.RequestUri.ToString().Contains("v2/users/auth")),
                 ItExpr.IsAny<CancellationToken>()
             )
             .ReturnsAsync(new HttpResponseMessage
@@ -268,7 +268,7 @@ public class PaymentProcessApiClientTests
             Id = Guid.NewGuid(),
             ExternalId = "ext_12345",
             Address = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
-            Status = TransactionStatus.Waiting
+            Status = TransactionStatus.Waiting,
         };
 
         SetupHttpResponse(HttpMethod.Post, "v1/payments/out", expectedResponse);
@@ -312,7 +312,7 @@ public class PaymentProcessApiClientTests
         authRequestHandler.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
-                ItExpr.Is<HttpRequestMessage>(m => m.RequestUri.ToString().Contains("v2/apikey/auth")),
+                ItExpr.Is<HttpRequestMessage>(m => m.RequestUri.ToString().Contains("v2/users/auth")),
                 ItExpr.IsAny<CancellationToken>()
             )
             .ReturnsAsync(new HttpResponseMessage
@@ -402,9 +402,10 @@ public class PaymentProcessApiClientTests
 
         var errorResponse = new CreateTransactionInResponse
         {
-            Error = "123",
-            Message = "Invalid request parameters"
+            ErrorCode = 123,
         };
+        errorResponse.AddErrorMsg("Invalid request parameters");
+
 
         SetupHttpResponse(HttpMethod.Post, "v1/payments/in", errorResponse);
 
@@ -414,7 +415,7 @@ public class PaymentProcessApiClientTests
         // Assert
         Assert.That(result, Is.Not.Null);
         Assert.That(result.HasError, Is.True);
-        Assert.That(result.Message, Is.Not.Null.Or.Empty);
+        Assert.That(result.ToString(), Is.Not.Null.Or.Empty);
     }
 
     [Test]
@@ -442,9 +443,9 @@ public class PaymentProcessApiClientTests
 
         GetTransactionResponse? errorResponse = new GetTransactionResponse
         {
-            Error = "123",
-            Message = "Transaction not found"
+            ErrorCode = 123,
         };
+        errorResponse.AddErrorMsg("Transaction not found");
 
         SetupHttpResponse(HttpMethod.Get, $"v1/payments/{nonExistentId}", errorResponse);
 
