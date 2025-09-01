@@ -8,21 +8,51 @@ namespace Tectum.PublicPaymentProcessClient;
 
 public class PaymentProcessClient : BaseHttpClient, IPaymentProcessApiClient
 {
-    public PaymentProcessClient(Action<PaymentProcessClientOptions>? optionsDelegate = null)
+    /// <summary>
+    /// Payment process client with options configuration via delegate
+    /// </summary>
+    /// <param name="optionsDelegate">Delegate for configuring client options</param>
+    public PaymentProcessClient(Action<PaymentProcessClientOptions> optionsDelegate)
         : base(null, optionsDelegate)
     {
     }
 
-    public PaymentProcessClient(HttpClient httpClient, Action<PaymentProcessClientOptions>? optionsDelegate = null)
+    /// <summary>
+    /// Payment process client with explicit authentication credentials
+    /// </summary>
+    /// <param name="clientId">Client identifier for authentication</param>
+    /// <param name="clientSecretKey">Client secret key for authentication</param>
+    public PaymentProcessClient(string clientId, string clientSecretKey) : base (null, clientId, clientSecretKey)
+    {
+    }
+
+
+    /// <summary>
+    /// Payment process client with custom HttpClient and options configuration
+    /// </summary>
+    /// <param name="httpClient">Custom HttpClient instance</param>
+    /// <param name="optionsDelegate">Delegate for configuring client options</param>
+    public PaymentProcessClient(HttpClient httpClient, Action<PaymentProcessClientOptions> optionsDelegate)
         : base(httpClient, optionsDelegate)
     {
     }
 
+    /// <summary>
+    /// Payment process client with IOptions configuration
+    /// </summary>
+    /// <param name="options">Client configuration options</param>
+    /// <param name="jsonSerializerSettings">Custom JSON serialization settings (optional)</param>
     public PaymentProcessClient(IOptions<PaymentProcessClientOptions> options, JsonSerializerSettings? jsonSerializerSettings = null)
         : base(null, options, jsonSerializerSettings)
     {
     }
 
+    /// <summary>
+    /// Payment process client with custom HttpClient and IOptions configuration
+    /// </summary>
+    /// <param name="httpClient">Custom HttpClient instance</param>
+    /// <param name="options">Client configuration options</param>
+    /// <param name="jsonSerializerSettings">Custom JSON serialization settings (optional)</param>
     public PaymentProcessClient(HttpClient httpClient, IOptions<PaymentProcessClientOptions> options, JsonSerializerSettings? jsonSerializerSettings = null)
         : base(httpClient, options, jsonSerializerSettings)
     {

@@ -26,7 +26,12 @@ public class BaseHttpClient : IDisposable
     private DateTime AuthExpiredAt { get; set; }
     private Task<bool> _authTask;
 
-    protected BaseHttpClient(HttpClient? httpClient, Action<PaymentProcessClientOptions>? optionsDelegate = null)
+    /// <summary>
+    /// Base HTTP client for payment processing API operations
+    /// </summary>
+    /// <param name="httpClient">HttpClient instance (optional - if null, a new instance will be created)</param>
+    /// <param name="optionsDelegate">Delegate for configuring client options via Action</param>
+    protected BaseHttpClient(HttpClient? httpClient, Action<PaymentProcessClientOptions> optionsDelegate)
     {
         _options = ApplyOptionsDelegate(optionsDelegate);
         _httpClient = httpClient ?? CreateDefaultHttpClient();
@@ -40,6 +45,12 @@ public class BaseHttpClient : IDisposable
         }
     }
 
+    /// <summary>
+    /// Base HTTP client for payment processing API operations
+    /// </summary>
+    /// <param name="httpClient">HttpClient instance (optional - if null, a new instance will be created)</param>
+    /// <param name="options">Client configuration options via IOptions pattern</param>
+    /// <param name="jsonSerializerSettings">JSON serialization settings (optional)</param>
     protected BaseHttpClient(HttpClient? httpClient, IOptions<PaymentProcessClientOptions> options, JsonSerializerSettings? jsonSerializerSettings = null)
     {
         _options = options.Value;
@@ -47,6 +58,29 @@ public class BaseHttpClient : IDisposable
         _disposeHttpClient = httpClient is null;
         ConfigurePaymentProcessApi(_options);
         _jsonSerializerSettings = jsonSerializerSettings ?? CreateJsonSerializerSettings();
+
+        if (httpClient is null)
+        {
+            ConfigureHttpClient(_httpClient, _options);
+        }
+    }
+
+    /// <summary>
+    /// Base HTTP client for payment processing API operations
+    /// </summary>
+    /// <param name="httpClient">HttpClient instance (optional - if null, a new instance will be created)</param>
+    /// <param name="clientId">Client identifier for authentication</param>
+    /// <param name="clientSecretKey">Client secret key for authentication</param>
+    protected BaseHttpClient(HttpClient? httpClient, string clientId, string clientSecretKey)
+    {
+        _options = ApplyOptionsDelegate(null);
+        _options.ClientId = clientId;
+        _options.ClientSecret = clientSecretKey;
+
+        _httpClient = httpClient ?? CreateDefaultHttpClient();
+        _disposeHttpClient = httpClient is null;
+        ConfigurePaymentProcessApi(_options);
+        _jsonSerializerSettings = CreateJsonSerializerSettings();
 
         if (httpClient is null)
         {

@@ -39,3 +39,19 @@ foreach (var currency in currencies.Currencies)
     Console.WriteLine(currency.Ticker);
 }
 ```
+
+## How to registrate and use in project 
+*Registration DI*
+
+```csharp
+builder.Services.AddPaymentProcessClient(options => options);
+```
+
+*How to use in class*
+
+```csharp
+app.MapGet("/currencies", async (IPaymentProcessApiClient client) =>
+{
+	await client.GetCurrenciesAsync(default);
+});
+```

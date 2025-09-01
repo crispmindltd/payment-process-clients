@@ -3,8 +3,9 @@
 // REST 
 var restClient = new PaymentProcessClient(options =>
 {
-    options.ClientId = "108";
-    options.ClientSecret = "secret";
+    options.BaseUrl = "https://test.api.payments.softnote.com/";
+    options.ClientId = "Long ID";
+    options.ClientSecret = "SecretKey";
 });
 
 var currencies = await restClient.GetCurrenciesAsync(default);
