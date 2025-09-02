@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Copyright>Copyright Crispmind LTD 2025</Copyright>
+		<Title>Package integration to Tectum Public Payment Process API: https://github.com/crispmindltd/payment-process-clients</Title>
+		<Description>Package integration to Tectum Public Payment Process API</Description>
+		<PackageProjectUrl>https://github.com/crispmindltd/payment-process-clients</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/crispmindltd/payment-process-clients</RepositoryUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<RepositoryType>GIT</RepositoryType>
+		<PackageTags>Tectum Public Payment Process API, integration</PackageTags>
+		<Authors>Crispmind LTD</Authors>
+		<Company>https://tectum.io/tectum-blockchain/</Company>
+		<FileVersion>1.0.101</FileVersion>
+		<Version>1.0.101</Version>
+		<PackageVersion>1.0.101</PackageVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
+		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+		<PackageReference Include="System.Text.Json" Version="8.0.5" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="..\README.md" Pack="true" PackagePath="\">
+			<Link>README.md</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
+
+</Project>
