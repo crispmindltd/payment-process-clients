@@ -36,14 +36,14 @@ jobs:
       run: dotnet restore CSharp/Tectum.PublicPaymentProcessClient
 
     - name: Build
-      run: dotnet build --configuration Release --no-restore CSharp/Tectum.Tectum.PublicPaymentProcessClient
+      run: dotnet build --configuration Release --no-restore CSharp/Tectum.PublicPaymentProcessClient
       
     # Execute all unit tests in the solution
     - name: Execute unit tests
-      run: dotnet test --configuration Release --no-build CSharp/Tectum.Tectum.PublicPaymentProcessClient
+      run: dotnet test --configuration Release --no-build CSharp/Tectum.PublicPaymentProcessClient
 
     - name: Create pack
-      run: dotnet pack --configuration Release --no-build --output . CSharp/Tectum.Tectum.PublicPaymentProcessClient
+      run: dotnet pack --configuration Release --no-build --output . CSharp/Tectum.PublicPaymentProcessClient
            
     - name: Push nuget.org
       run: dotnet nuget push *.nupkg --api-key ${NUGET_TOKEN} --source https://api.nuget.org/v3/index.json --skip-duplicate
