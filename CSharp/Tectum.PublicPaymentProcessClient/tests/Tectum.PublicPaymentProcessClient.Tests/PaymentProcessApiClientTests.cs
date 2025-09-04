@@ -42,10 +42,10 @@ public class PaymentProcessApiClientTests
             WriteIndented = true
         };
 
-        //_mockConfig.SetupGet(x => x.Value)
-        //    .Returns(new PaymentProcessClientConfig());
-
-        _paymentProcessApiClient = new PaymentProcessClient(_httpClient);
+        _paymentProcessApiClient = new PaymentProcessClient(_httpClient, options =>
+        {
+            options.BaseUrl = "https://api.example.com/";
+        });
 
         SetupAuthorizationMock();
     }
@@ -288,7 +288,10 @@ public class PaymentProcessApiClientTests
     public void Constructor_WithHttpClientOnly_ShouldInitialize()
     {
         // Arrange & Act
-        var client = new PaymentProcessClient();
+        var client = new PaymentProcessClient(options =>
+        {
+            options.BaseUrl = "https://api.example.com/";
+        });
 
         // Assert
         Assert.That(client, Is.Not.Null);
@@ -298,7 +301,10 @@ public class PaymentProcessApiClientTests
     public void Constructor_WithHttpClientAndCredentials_ShouldInitialize()
     {
         // Arrange & Act
-        var client = new PaymentProcessClient();
+        var client = new PaymentProcessClient(options =>
+        {
+            options.BaseUrl = "https://api.example.com/";
+        });
 
         // Assert
         Assert.That(client, Is.Not.Null);
@@ -321,12 +327,10 @@ public class PaymentProcessApiClientTests
                 Content = new StringContent("Unauthorized")
             });
 
-        var authHttpClient = new HttpClient(authRequestHandler.Object)
+        var clientWithAuth = new PaymentProcessClient(options =>
         {
-            BaseAddress = new Uri("https://api.example.com/")
-        };
-
-        var clientWithAuth = new PaymentProcessClient();
+            options.BaseUrl = "https://api.example.com/";
+        });
 
         // Act & Assert
         Assert.ThrowsAsync<System.Security.Authentication.AuthenticationException>(async () =>
