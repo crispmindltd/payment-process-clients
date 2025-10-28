@@ -66,3 +66,4 @@ jobs:
       run: dotnet nuget push *.nupkg --source https://nuget.pkg.github.com/crispmindltd/index.json --api-key ${GITHUB_TOKEN} --skip-duplicate
       env:
         GITHUB_TOKEN: ${{ secrets.PACKAGES }}
+        
