@@ -18,10 +18,24 @@ public interface IPaymentProcessApiClient : IDisposable
     Task<GetBalancesResponse?> GetBalancesAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Get all balances for user
+    /// </summary>
+    /// <param name="authToken">authorization token</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task<GetBalancesResponse?> GetBalancesAsync(string authToken, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Get all transactions for user
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     Task<GetTransactionsResponse?> GetTransactionsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Get all transactions for user
+    /// </summary>
+    /// <param name="authToken">authorization token</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task<GetTransactionsResponse?> GetTransactionsAsync(string authToken, CancellationToken cancellationToken);
 
     /// <summary>
     /// Get one user's transaction
@@ -31,11 +45,27 @@ public interface IPaymentProcessApiClient : IDisposable
     Task<GetTransactionResponse?> GetTransactionAsync(Guid transactionId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Get one user's transaction
+    /// </summary>
+    /// <param name="authToken">authorization token</param>
+    /// <param name="transactionId">Transaction identificator</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task<GetTransactionResponse?> GetTransactionAsync(string authToken, Guid transactionId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Create input transaction
     /// </summary>
     /// <param name="request">Data of transaction</param>
     /// <param name="cancellationToken">Cancellation token</param>
     Task<CreateTransactionInResponse?> CreateTransactionInAsync(CreateTransactionInRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Create input transaction
+    /// </summary>
+    /// <param name="authToken">authorization token</param>
+    /// <param name="request">Data of transaction</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task<CreateTransactionInResponse?> CreateTransactionInAsync(string authToken, CreateTransactionInRequest request, CancellationToken cancellationToken);
 
     /// <summary>
     /// Create outgoing transaction
@@ -45,9 +75,25 @@ public interface IPaymentProcessApiClient : IDisposable
     Task<CreateTransactionOutResponse?> CreateTransactionOutAsync(CreateTransactionOutRequest request, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Create outgoing transaction
+    /// </summary>
+    /// <param name="authToken">authorization token</param>
+    /// <param name="request">Data of outgoing transaction</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task<CreateTransactionOutResponse?> CreateTransactionOutAsync(string authToken, CreateTransactionOutRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Confirm one transaction and start waiting
     /// </summary>
     /// <param name="transactionId">Transaction identificator</param>
     /// <param name="cancellationToken">Cancellation token</param>
     Task<TransactionConfirmResponse?> ConfirmTransactionAsync(Guid transactionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Confirm one transaction and start waiting
+    /// </summary>
+    /// <param name="authToken">authorization token</param>
+    /// <param name="transactionId">Transaction identificator</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task<TransactionConfirmResponse?> ConfirmTransactionAsync(string authToken, Guid transactionId, CancellationToken cancellationToken = default);
 }

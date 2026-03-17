@@ -63,6 +63,11 @@ public class PaymentProcessClient : BaseHttpClient, IPaymentProcessApiClient
         return await SendRequestAsync<GetBalancesResponse>("v1/balances", HttpMethod.Get, null, cancellationToken);
     }
 
+    public async Task<GetBalancesResponse?> GetBalancesAsync(string authToken, CancellationToken cancellationToken = default)
+    {
+        return await SendRequestAsync<GetBalancesResponse>(authToken, "v1/balances", HttpMethod.Get, null, cancellationToken);
+    }
+
     public async Task<GetCurrenciesResponse?> GetCurrenciesAsync(CancellationToken cancellationToken = default)
     {
         return await SendRequestAsync<GetCurrenciesResponse>("v1/currencies", HttpMethod.Get, null, cancellationToken);
@@ -73,9 +78,19 @@ public class PaymentProcessClient : BaseHttpClient, IPaymentProcessApiClient
         return await SendRequestAsync<GetTransactionsResponse>("v1/payments", HttpMethod.Get, null, cancellationToken);
     }
 
+    public async Task<GetTransactionsResponse?> GetTransactionsAsync(string authToken, CancellationToken cancellationToken = default)
+    {
+        return await SendRequestAsync<GetTransactionsResponse>(authToken, "v1/payments", HttpMethod.Get, null, cancellationToken);
+    }
+
     public async Task<GetTransactionResponse?> GetTransactionAsync(Guid transactionId, CancellationToken cancellationToken = default)
     {
         return await SendRequestAsync<GetTransactionResponse>($"v1/payments/{transactionId}", HttpMethod.Get, null, cancellationToken);
+    }
+
+    public async Task<GetTransactionResponse?> GetTransactionAsync(string authToken, Guid transactionId, CancellationToken cancellationToken = default)
+    {
+        return await SendRequestAsync<GetTransactionResponse>(authToken, $"v1/payments/{transactionId}", HttpMethod.Get, null, cancellationToken);
     }
 
     public async Task<CreateTransactionInResponse?> CreateTransactionInAsync(CreateTransactionInRequest request, CancellationToken cancellationToken = default)
@@ -83,13 +98,28 @@ public class PaymentProcessClient : BaseHttpClient, IPaymentProcessApiClient
         return await SendRequestAsync<CreateTransactionInResponse>("v1/payments/in", HttpMethod.Post, request, cancellationToken);
     }
 
+    public async Task<CreateTransactionInResponse?> CreateTransactionInAsync(string authToken, CreateTransactionInRequest request, CancellationToken cancellationToken = default)
+    {
+        return await SendRequestAsync<CreateTransactionInResponse>(authToken, "v1/payments/in", HttpMethod.Post, request, cancellationToken);
+    }
+
     public async Task<CreateTransactionOutResponse?> CreateTransactionOutAsync(CreateTransactionOutRequest request, CancellationToken cancellationToken = default)
     {
         return await SendRequestAsync<CreateTransactionOutResponse>("v1/payments/out", HttpMethod.Post, request, cancellationToken);
     }
 
+    public async Task<CreateTransactionOutResponse?> CreateTransactionOutAsync(string authToken, CreateTransactionOutRequest request, CancellationToken cancellationToken = default)
+    {
+        return await SendRequestAsync<CreateTransactionOutResponse>(authToken, "v1/payments/out", HttpMethod.Post, request, cancellationToken);
+    }
+
     public async Task<TransactionConfirmResponse?> ConfirmTransactionAsync(Guid transactionId, CancellationToken cancellationToken = default)
     {
         return await SendRequestAsync<TransactionConfirmResponse>($"v1/payments/{transactionId}/confirm", HttpMethod.Post, null, cancellationToken);
+    }
+
+    public async Task<TransactionConfirmResponse?> ConfirmTransactionAsync(string authToken, Guid transactionId, CancellationToken cancellationToken = default)
+    {
+        return await SendRequestAsync<TransactionConfirmResponse>(authToken, $"v1/payments/{transactionId}/confirm", HttpMethod.Post, null, cancellationToken);
     }
 }

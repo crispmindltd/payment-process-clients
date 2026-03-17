@@ -159,6 +159,32 @@ public class BaseHttpClient : IDisposable
         return JsonConvert.DeserializeObject<T>(response, _jsonSerializerSettings);
     }
 
+    protected async Task<T?> GetAsync<T>(string authToken, string url,
+    IEnumerable<KeyValuePair<string, string>>? parameters = default,
+    CancellationToken cancellationToken = default)
+    where T : BaseApiResponse
+    {
+        NameValueCollection? queryString = null;
+        if (parameters != null)
+        {
+            queryString = HttpUtility.ParseQueryString(string.Empty);
+
+            foreach (var parameter in parameters)
+            {
+                queryString.Add(parameter.Key, parameter.Value);
+            }
+        }
+
+        using var requestMessage = new HttpRequestMessage
+        {
+            Method = HttpMethod.Get,
+            RequestUri = new Uri(url + (queryString != null ? "?" + queryString : ""), UriKind.Relative)
+        };
+
+        var response = await SendRequestWithAuthTokenAsync(authToken, requestMessage, cancellationToken: cancellationToken);
+        return JsonConvert.DeserializeObject<T>(response, _jsonSerializerSettings);
+    }
+
     protected Task<T?> SendRequestAsync<T>(string url,
         HttpMethod method,
         object? request = default,
@@ -166,6 +192,15 @@ public class BaseHttpClient : IDisposable
         where T : class
     {
         return SendRequestAsync<T>(url, method, new Dictionary<string, string>(), request, cancellationToken);
+    }
+
+    protected Task<T?> SendRequestAsync<T>(string authToken, string url,
+    HttpMethod method,
+    object? request = default,
+    CancellationToken cancellationToken = default)
+    where T : class
+    {
+        return SendRequestAsync<T>(authToken, url, method, new Dictionary<string, string>(), request, cancellationToken);
     }
 
     /// <summary>
@@ -186,6 +221,27 @@ public class BaseHttpClient : IDisposable
         where T : class
     {
         return SendRequestAsync<T>(url, method, headers, UriKind.Relative, request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Send request to outside by httlcient
+    /// </summary>
+    /// <param name="authToken">authorization token</param>
+    /// <param name="url">Url</param>
+    /// <param name="method">http method</param>
+    /// <param name="headers">Headers of http client</param>
+    /// <param name="request">Request for sending to </param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <typeparam name="T">BaseApiResponse </typeparam>
+    /// <returns></returns>
+    protected Task<T?> SendRequestAsync<T>(string authToken, string url,
+        HttpMethod method,
+        IReadOnlyDictionary<string, string> headers,
+        object? request = default,
+        CancellationToken cancellationToken = default)
+        where T : class
+    {
+        return SendRequestAsync<T>(authToken, url, method, headers, UriKind.Relative, request, cancellationToken);
     }
 
     /// <summary>
@@ -233,6 +289,51 @@ public class BaseHttpClient : IDisposable
     }
 
     /// <summary>
+    /// Send request to outside by httlcient
+    /// </summary>
+    /// <param name="authToken">authorization token</param>
+    /// <param name="url">Url</param>
+    /// <param name="method">http method</param>
+    /// <param name="headers">Headers of http client</param>
+    /// <param name="uriKind">Uri kind</param>
+    /// <param name="request">Request for sending to </param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <typeparam name="T">BaseApiResponse </typeparam>
+    /// <returns></returns>
+    protected async Task<T?> SendRequestAsync<T>(string authToken, string url,
+        HttpMethod method,
+        IReadOnlyDictionary<string, string> headers,
+        UriKind uriKind,
+        object? request = default,
+        CancellationToken cancellationToken = default)
+        where T : class
+    {
+        StringContent? content = null;
+
+        if (request != null)
+        {
+            var jsonRequest = JsonConvert.SerializeObject(request, _jsonSerializerSettings);
+
+            content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+        }
+
+        using (var requestMessage = new HttpRequestMessage())
+        {
+            requestMessage.Content = content;
+            requestMessage.Method = method;
+            requestMessage.RequestUri = new Uri(url, uriKind);
+
+            foreach (var header in headers)
+            {
+                requestMessage.Headers.Add(header.Key, header.Value);
+            }
+
+            var response = await SendRequestWithAuthTokenAsync(authToken, requestMessage, cancellationToken).ConfigureAwait(false);
+            return JsonConvert.DeserializeObject<T>(response, _jsonSerializerSettings);
+        }
+    }
+
+    /// <summary>
     /// Send request to outside services
     /// </summary>
     /// <param name="message"></param>
@@ -247,6 +348,22 @@ public class BaseHttpClient : IDisposable
 
         // Add Authorization header if token is set
         message.Headers.Add("Authorization", AuthToken);
+        //message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(null, AuthToken);
+
+        using var response = await _httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Send request to outside services with Auth Token
+    /// </summary>
+    /// <param name="authToken"></param>
+    /// <param name="message"></param>
+    /// <param name="cancellationToken">Token</param>
+    private async Task<string> SendRequestWithAuthTokenAsync(string authToken,HttpRequestMessage message, CancellationToken cancellationToken)
+    {
+        // Add Authorization header if token is set
+        message.Headers.Add("Authorization", authToken);
         //message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(null, AuthToken);
 
         using var response = await _httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
