@@ -31,4 +31,9 @@ public class CreateTransactionOutRequest
     /// Request id
     /// </summary>
     public Guid RequestId { get; set; }
+
+    /// <summary>
+    /// Callback Url
+    /// </summary>
+    public string? CallBackUrl { get; set; }
 }
