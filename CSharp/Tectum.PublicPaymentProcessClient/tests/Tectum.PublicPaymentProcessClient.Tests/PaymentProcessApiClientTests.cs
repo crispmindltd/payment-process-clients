@@ -232,8 +232,11 @@ public class PaymentProcessApiClientTests
         var expectedResponse = new CreateTransactionInResponse
         {
             Id = Guid.NewGuid(),
+            PaymentIntentId = Guid.NewGuid(),
             ExternalId = "ext_12345",
             Address = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+            AddressTo = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+            ExpiresAt = DateTime.UtcNow.AddMinutes(5),
             Status = TransactionStatus.Waiting
         };
 
@@ -246,8 +249,37 @@ public class PaymentProcessApiClientTests
         Assert.That(result, Is.Not.Null);
         Assert.That(result.HasError, Is.False);
         Assert.That(result.Id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(result.PaymentIntentId, Is.EqualTo(expectedResponse.PaymentIntentId));
+        Assert.That(result.AddressTo, Is.EqualTo(expectedResponse.AddressTo));
+        Assert.That(result.ExpiresAt, Is.EqualTo(expectedResponse.ExpiresAt).Within(TimeSpan.FromMilliseconds(1)));
         Assert.That(result.Address, Is.Not.Null.Or.Empty);
         Assert.That(result.ExternalId, Is.Not.Null.Or.Empty);
+    }
+
+    [Test]
+    public async Task GetPaymentIntentAsync_ShouldReturnAuthoritativeIntent()
+    {
+        var paymentIntentId = Guid.NewGuid();
+        var expectedResponse = new PaymentIntentResponse
+        {
+            PaymentIntentId = paymentIntentId,
+            Status = TransactionStatus.Waiting,
+            AddressTo = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+            Amount = 1.5m,
+            Network = Networks.Ethereum,
+            Currency = UsdtEthKey,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(5)
+        };
+
+        SetupHttpResponse(HttpMethod.Get, $"v1/payments/{paymentIntentId}/intent", expectedResponse);
+
+        var result = await _paymentProcessApiClient.GetPaymentIntentAsync(paymentIntentId, CancellationToken.None);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.HasError, Is.False);
+        Assert.That(result.PaymentIntentId, Is.EqualTo(paymentIntentId));
+        Assert.That(result.AddressTo, Is.EqualTo(expectedResponse.AddressTo));
+        Assert.That(result.Currency, Is.EqualTo(UsdtEthKey));
     }
 
     [Test]

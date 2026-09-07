@@ -89,6 +89,10 @@ public interface IPaymentProcessApiClient : IDisposable
     /// <param name="cancellationToken">Cancellation token</param>
     Task<TransactionConfirmResponse?> ConfirmTransactionAsync(Guid transactionId, CancellationToken cancellationToken = default);
 
+    Task<PaymentIntentResponse?> GetPaymentIntentAsync(Guid paymentIntentId, CancellationToken cancellationToken = default);
+
+    Task<PaymentIntentResponse?> GetPaymentIntentAsync(string authToken, Guid paymentIntentId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Confirm one transaction and start waiting
     /// </summary>

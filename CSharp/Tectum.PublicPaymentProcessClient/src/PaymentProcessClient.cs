@@ -122,4 +122,14 @@ public class PaymentProcessClient : BaseHttpClient, IPaymentProcessApiClient
     {
         return await SendRequestAsync<TransactionConfirmResponse>(authToken, $"v1/payments/{transactionId}/confirm", HttpMethod.Post, null, cancellationToken);
     }
+
+    public async Task<PaymentIntentResponse?> GetPaymentIntentAsync(Guid paymentIntentId, CancellationToken cancellationToken = default)
+    {
+        return await SendRequestAsync<PaymentIntentResponse>($"v1/payments/{paymentIntentId}/intent", HttpMethod.Get, null, cancellationToken);
+    }
+
+    public async Task<PaymentIntentResponse?> GetPaymentIntentAsync(string authToken, Guid paymentIntentId, CancellationToken cancellationToken = default)
+    {
+        return await SendRequestAsync<PaymentIntentResponse>(authToken, $"v1/payments/{paymentIntentId}/intent", HttpMethod.Get, null, cancellationToken);
+    }
 }

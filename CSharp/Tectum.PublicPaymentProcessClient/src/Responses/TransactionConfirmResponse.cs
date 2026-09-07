@@ -9,6 +9,12 @@ public class TransactionConfirmResponse : BaseApiResponse
     /// </summary>
     public Guid Id { get; set; }
 
+    public Guid PaymentIntentId { get; set; }
+
+    public string AddressTo { get; set; } = string.Empty;
+
+    public DateTime ExpiresAt { get; set; }
+
     /// <summary>
     /// Transaction status
     /// </summary>
